@@ -1,9 +1,0 @@
-{
-    "token": "",
-    "webhook_passcode": "",
-    "matrixOpts": {
-        "homeserverUrl": "",
-        "accessToken": ""
-    },
-    "targetRoom": ""
-}
