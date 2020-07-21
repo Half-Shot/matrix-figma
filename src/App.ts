@@ -54,7 +54,8 @@ async function main() {
             console.log("Comment is stale, ignoring");
             return;
         }
-        const body = `**${payload.triggered_by.handle}** commented on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${payload.comment[0].text}`;
+        const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`
+        const body = `**${payload.triggered_by.handle}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${payload.comment[0].text}`;
         matrixClient.sendMessage(config.targetRoom, {
             "msgtype": "m.text",
             "body": body,
