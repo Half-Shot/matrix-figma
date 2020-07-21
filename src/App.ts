@@ -1,9 +1,9 @@
-import * as config from "./config.json";
 import * as Figma from "figma-js";
 import express from "express";
 import bodyParser from "body-parser";
 import { MatrixClient } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
+import config from "./config";
 
 const md = markdownit();
 
