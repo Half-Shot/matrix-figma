@@ -40,15 +40,16 @@ async function main() {
         const payload = req.body as Payload;
         if (payload.passcode !== config.webhook_passcode) {
             console.warn("Invalid passcode for payload!");
-            res.status(401);
+            return res.sendStatus(401);
         }
+        res.sendStatus(200);
         console.log("Got payload:", req.body, req.rawHeaders, req.query);
         if (!payload.file_name || !payload.comment_id) {
             return;
         }
         // We need to check if the comment was actually new.
         // There isn't a way to tell how the comment has changed, so for now check the timestamps
-        if (Date.parse(payload.timestamp) - Date.parse(payload.created_at) > 5000) {
+        if (Date.now() - Date.parse(payload.created_at) > 5000) {
             // Comment was created at least 5 seconds before the webhook, ignore it.
             console.log("Comment is stale, ignoring");
             return;
@@ -60,7 +61,6 @@ async function main() {
             "formatted_body": md.renderInline(body),
             "format": "org.matrix.custom.html",
         });
-        res.status(200);
     }).listen(9898);
 }
 
