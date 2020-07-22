@@ -13,6 +13,7 @@ class FigmaApp {
     private figma: Figma.ClientInterface;
     private matrixClient: MatrixClient;
     private globalState!: IFigmaRoomStateGlobalConfig;
+    private permittedMembers: Set<string>;
     private figmaRooms: FigmaFileRoom[] = [];
     private myUserId: string = "";
     private catchAllRoom: FigmaFileRoom;
@@ -37,7 +38,7 @@ class FigmaApp {
             // Still starting up, ignore
             return;
         }
-        if (!this.globalState.adminUsers.includes(event.sender)) {
+        if (!this.permittedMembers.has(event.sender)) {
             console.warn(`Rejecting invite from ${event.sender} because they are not an admin`);
             await this.matrixClient.kickUser(this.matrixClient.getUserId(), roomId, "User is not on the permitted admin user list");
             return;
@@ -179,6 +180,7 @@ class FigmaApp {
         while(this.globalState === undefined) {
             try {
                 await this.matrixClient.joinRoom(config.adminRoom);
+                this.permittedMembers = new Set(await this.matrixClient.getJoinedRoomMembers(config.adminRoom));
                 this.globalState = await this.matrixClient.getRoomStateEvent(config.adminRoom, FigmaRoomStateGlobalConfigEventType, ""); 
                 console.log(this.globalState);   
             } catch (ex) {
