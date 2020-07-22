@@ -95,30 +95,33 @@ class FigmaApp {
         }
         // Is it an existing figma room.
         const figmaRooms = this.figmaRooms.filter(r =>r.roomId === roomId);
-        if (figmaRooms.length === 0) {
-            // Not a figma room, is it a construction message?
-            const result = /figma track ([A-Za-z0-9]+)/.exec(event.content.body);
-            if (result) {
-                // It is!
-                let resultEmoji = "✅";
-                try {
-                    await FigmaFileRoom.createState(roomId, result[1], this.matrixClient);
-                } catch (ex) {
-                    await this.matrixClient.sendNotice(roomId, "Sorry, I need permission to send state events in order to start tracking. You can revoke the permission afterwards.");
-                    resultEmoji = "❌";
-                    return;
-                }
-                await this.matrixClient.sendEvent(roomId, "m.reaction", {
-                    "m.relates_to": {
-                        rel_type: "m.annotation",
-                        event_id: event.event_id,
-                        key: resultEmoji,
-                    }
-                });
-                // We don't need to push it, we will get the state reflected back.
+
+        // Is it a construction message?
+        const result = /figma track ([A-Za-z0-9]+)/.exec(event.content.body);
+        if (result) {
+            if (figmaRooms.find((r) => r.fileId === result[1])) {
+                return this.matrixClient.sendNotice(roomId, "That file is already being tracked in this room");
+            }
+            // It is!
+            let resultEmoji = "✅";
+            try {
+                await FigmaFileRoom.createState(roomId, result[1], this.matrixClient);
+            } catch (ex) {
+                await this.matrixClient.sendNotice(roomId, "Sorry, I need permission to send state events in order to start tracking. You can revoke the permission afterwards.");
+                resultEmoji = "❌";
                 return;
             }
+            await this.matrixClient.sendEvent(roomId, "m.reaction", {
+                "m.relates_to": {
+                    rel_type: "m.annotation",
+                    event_id: event.event_id,
+                    key: resultEmoji,
+                }
+            });
+            // We don't need to push it, we will get the state reflected back.
+            return;
         }
+
         for (const figmaRoom of figmaRooms) {
             console.log(`Sending event to figma room`);
             await figmaRoom.onMessageEvent(event);
