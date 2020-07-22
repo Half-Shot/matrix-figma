@@ -34,7 +34,7 @@ export class FigmaFileRoom {
 
     public async handleNewComment(payload: IFigmaPayload) {
         const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`;
-        const comment = payload.comment.map(({text}) => text).join("");
+        const comment = payload.comment.map(({text}) => text).join("\n");
         const name = payload.triggered_by.handle.split(' ').map(p => p[0] + '&#8203;' + p.slice(1)).join(' ');
         const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
         const parentEventId = this.commentIdToEvent.get(payload.parent_id);
@@ -51,7 +51,11 @@ export class FigmaFileRoom {
         }
         content["uk.half-shot.matrix-figma.comment_id"] = payload.comment_id;
         const eventId = await this.client.sendMessage(this.roomId, content);
-        this.commentIdToEvent.set(payload.comment_id, eventId);
+        this.commentIdToEvent.set(payload.comment_id, {
+            ...content,
+            event_id: eventId,
+            sender: await this.client.getUserId(),
+        });
     }
 
     public async updateState(state: IFigmaRoomStateFile) {
