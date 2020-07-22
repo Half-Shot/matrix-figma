@@ -5,5 +5,5 @@ export default {
         "homeserverUrl": process.env.MATRIX_HOMESERVER_URL as string,
         "accessToken": process.env.MATRIX_ACCESS_TOKEN as string,
     },
-    "targetRoom": process.env.TARGET_ROOM as string,
+    "adminRoom": process.env.TARGET_ROOM as string,
 }

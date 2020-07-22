@@ -1,43 +1,128 @@
 import * as Figma from "figma-js";
 import express from "express";
+import e, { Request, Response } from "express";
 import bodyParser from "body-parser";
-import { MatrixClient } from "matrix-bot-sdk";
-import markdownit from "markdown-it";
+import { MatrixClient, MatrixEvent, MessageEventContent, MembershipEventContent, AutojoinUpgradedRoomsMixin, StateEvent } from "matrix-bot-sdk";
 import config from "./config";
+import { FigmaRoomStateGlobalConfigEventType, IFigmaRoomStateGlobalConfig, FigmaFileRoom, IFigmaRoomStateFile, FigmaRoomStateFileEventType } from "./FigmaRoom";
+import { IFigmaPayload } from "./IPayload";
 
-const md = markdownit();
+class FigmaApp {
+    private figma: Figma.ClientInterface;
+    private matrixClient: MatrixClient;
+    private globalState!: IFigmaRoomStateGlobalConfig;
+    private figmaRooms: FigmaFileRoom[] = [];
+    private myUserId: string = "";
+    private catchAllRoom: FigmaFileRoom;
 
-interface Payload {
-        comment: [ { text: string, } ],
-        comment_id: string,
-        created_at: string,
-        event_type: string,
-        file_key: string,
-        file_name: string,
-        mentions: any[],
-        order_id: string,
-        parent_id: string,
-        passcode: string,
-        protocol_version: string,
-        resolved_at: string,
-        retries: number,
-        timestamp: string,
-        triggered_by: { id: string, handle: string },
-        webhook_id: string,
-}
+    constructor() {
+        this.figma = Figma.Client({
+            personalAccessToken: config.token,
+        });
+        this.matrixClient = new MatrixClient(
+            config.matrixOpts.homeserverUrl,
+            config.matrixOpts.accessToken
+        );
+        this.matrixClient.on("room.message", this.onRoomMessage.bind(this));
+        this.matrixClient.on("room.event", this.onRoomEvent.bind(this));
+        this.matrixClient.on("room.invite", this.onInvite.bind(this))
+        AutojoinUpgradedRoomsMixin.setupOnClient(this.matrixClient);
+        this.catchAllRoom = new FigmaFileRoom(config.adminRoom, "", { fileId: "" }, this.matrixClient);
+    }
 
-async function main() {
-    const client = Figma.Client({
-        personalAccessToken: config.token,
-    });
+    private async onInvite(roomId: string, event: MatrixEvent<MembershipEventContent>) {
+        if (!this.globalState.adminUsers.includes(event.sender)) {
+            console.warn(`Rejecting invite from ${event.sender} because they are not an admin`);
+            await this.matrixClient.kickUser(this.matrixClient.getUserId(), roomId, "User is not on the permitted admin user list");
+            return;
+        }
+        await this.matrixClient.joinRoom(roomId);
+        await this.matrixClient.sendNotice(roomId, "Hello 👋. Please say `figma add <fileId>` to start tracking comments for a file.");
+    }
 
-    const matrixClient = new MatrixClient(config.matrixOpts.homeserverUrl, config.matrixOpts.accessToken);
+    private async onRoomEvent(roomId: string, event: StateEvent<IFigmaRoomStateGlobalConfig|IFigmaRoomStateFile>) {
+        console.debug("onRoomEvent => ", roomId, event.eventId, event.type, event.stateKey);
+        if (event.sender !== this.myUserId || !this.globalState.adminUsers.includes(event.sender)) {
+            // Disallowed update, we don't trust these users.
+            console.warn(`Ignoring message from ${event.sender}, not an admin`);
+        }
+        if (event.type === FigmaRoomStateFileEventType && event.stateKey) {
+            // Do we have a room for this already?
+            const existingRoom = this.figmaRooms.find((r) => r.roomId === roomId && r.stateKey === event.stateKey);
+            if (existingRoom) {
+                console.log("Updating state for existing room", event.content);
+                existingRoom.updateState(event.content as IFigmaRoomStateFile);
+            } else {
+                // Create a new room.
+                console.log("Created new room from state", event.content);
+                this.figmaRooms.push(new FigmaFileRoom(roomId, event.stateKey, event.content as IFigmaRoomStateFile, this.matrixClient));
+            }
+        } else if (event.type === FigmaRoomStateGlobalConfigEventType && event.stateKey === "" && roomId === config.adminRoom) {
+            console.log("Updating global config to", event.content);
+            this.globalState = event.content as IFigmaRoomStateGlobalConfig;
+        }
+        // Otherwise, ignore the event.
+    } 
 
-    // Ensure we are joined.
-    await matrixClient.joinRoom(config.targetRoom);
+    private async onRoomMessage(roomId: string, event: MatrixEvent<MessageEventContent>) {
+        console.debug("onRoomMessage => ", roomId, event.type, event.sender);
+        if (!event.content.body || event.sender === this.myUserId) {
+            // Needs to be a message.
+            return;
+        }
+        // Is it an existing figma room.
+        const figmaRooms = this.figmaRooms.filter(r =>r.roomId === roomId);
+        if (figmaRooms.length === 0) {
+            // Not a figma room, is it a construction message?
+            const result = /figma add ([A-Za-z]+)/.exec(event.content.body);
+            if (result) {
+                // It is!
+                await FigmaFileRoom.createState(roomId, result[1], this.matrixClient);
+                await this.matrixClient.sendEvent(roomId, "m.reaction", {
+                    "m.relates_to": {
+                        rel_type: "m.annotation",
+                        event_id: event.raw.event_id,
+                        key: "✅",
+                    }
+                });
+                // We don't need to push it, we will get the state reflected back.
+                return;
+            }
+        }
+        for (const figmaRoom of figmaRooms) {
+            console.log(`Sending event to figma room`);
+            await figmaRoom.onMessageEvent(event);
+        }
+    }
 
-    const app = express().use(bodyParser.json()).post("/", (req, res) => {
-        const payload = req.body as Payload;
+    private async syncRooms() {
+        let joinedRooms: string[]|undefined;
+        while(joinedRooms === undefined) {
+            try {
+                joinedRooms = await this.matrixClient.getJoinedRooms();
+            } catch (ex) {
+                console.warn("Could not get joined rooms, retrying in 5s");
+                await new Promise(res => setTimeout(res, 5000));
+            }
+        }
+        for (const roomId of joinedRooms) {
+            try {
+                const roomState = await this.matrixClient.getRoomState(roomId);
+                for (const event of roomState) {
+                    if (event.type === FigmaRoomStateFileEventType) {
+                        console.log("Created new room from state", roomId, event.content);
+                        this.figmaRooms.push(new FigmaFileRoom(roomId, event.stateKey, event.content as IFigmaRoomStateFile, this.matrixClient));
+                    }
+                    // Else, ignore.
+                }
+            } catch (ex) {
+                console.warn("Couldn't get room state for:", roomId, ex);
+            }
+        }
+    }
+
+    private async onWebhook(req: Request, res: Response) {
+        const payload = req.body as IFigmaPayload;
         if (payload.passcode !== config.webhook_passcode) {
             console.warn("Invalid passcode for payload!");
             return res.sendStatus(401);
@@ -54,15 +139,46 @@ async function main() {
             console.log("Comment is stale, ignoring");
             return;
         }
-        const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`
-        const body = `**${payload.triggered_by.handle}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${payload.comment[0].text}`;
-        matrixClient.sendMessage(config.targetRoom, {
-            "msgtype": "m.text",
-            "body": body,
-            "formatted_body": md.renderInline(body),
-            "format": "org.matrix.custom.html",
-        });
-    }).listen(9898);
+        const rooms = this.figmaRooms.filter((r) => r.fileId === payload.file_key);
+        if (rooms.length) {
+            await Promise.all(rooms.map(async (r) => 
+                r.handleNewComment(payload)
+            ));
+        } else {
+            // Send to the catch-all
+            this.catchAllRoom.handleNewComment(payload);
+        }
+    }
+
+    public async startup() {    
+        console.log("Starting up...");
+        await this.matrixClient.start();
+        console.log("Syncing rooms...");
+        await this.syncRooms();
+        this.myUserId = await this.matrixClient.getUserId();
+
+        // Get config from admin room.
+        while(this.globalState === undefined) {
+            try {
+                await this.matrixClient.joinRoom(config.adminRoom);
+                this.globalState = await this.matrixClient.getRoomStateEvent(config.adminRoom, FigmaRoomStateGlobalConfigEventType, "");    
+            } catch (ex) {
+                console.error(`Could not start, waiting for ${FigmaRoomStateGlobalConfigEventType} to be defined in ${config.adminRoom}. Waiting 5s`);
+                await new Promise(res => setTimeout(res, 5000));
+            } 
+        }
+    
+        const app = express()
+            .use(bodyParser.json())
+            .post("/", this.onWebhook.bind(this))
+            .listen(9898);
+        console.log(`Listening on http://0.0.0.0:9898`);
+    }
+}
+
+async function main() {
+    const app = new FigmaApp();
+    await app.startup();
 }
 
 main().catch((ex) => {
