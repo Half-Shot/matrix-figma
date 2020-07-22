@@ -35,7 +35,8 @@ export class FigmaFileRoom {
     public async handleNewComment(payload: IFigmaPayload) {
         const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`;
         const comment = payload.comment.map(({text}) => text).join("\n");
-        const name = payload.triggered_by.handle.split(' ').map(p => p[0] + '&#8203;' + p.slice(1)).join(' ');
+        const empty = "‎"; // This contains an empty character to thwart the notification matcher.
+        const name = payload.triggered_by.handle.split(' ').map(p => p[0] + empty + p.slice(1)).join(' ');
         const parentEventId = this.commentIdToEvent.get(payload.parent_id);
         let content;
         if (parentEventId) {
