@@ -16,6 +16,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node ./lib/App.js"
+    "start": "node ./lib/App.js",
+    "prepublish": "npm run build"
   }
 }
