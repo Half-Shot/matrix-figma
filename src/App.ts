@@ -208,6 +208,12 @@ class FigmaApp {
         console.log(`Listening on http://0.0.0.0:9898`);
         console.log("Starting matrix sync..");
         await this.matrixClient.start();
+
+        process.on("SIGTERM", () => {
+            console.log("Got SIGTERM, stopping app")
+            this.matrixClient.stop();
+            app.close();
+        });
     }
 }
 
