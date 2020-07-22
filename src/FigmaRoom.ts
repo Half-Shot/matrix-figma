@@ -36,12 +36,13 @@ export class FigmaFileRoom {
         const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`;
         const comment = payload.comment.map(({text}) => text).join("\n");
         const name = payload.triggered_by.handle.split(' ').map(p => p[0] + '&#8203;' + p.slice(1)).join(' ');
-        const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
         const parentEventId = this.commentIdToEvent.get(payload.parent_id);
         let content;
         if (parentEventId) {
+            const body = `**${name}**: ${comment}`;
             content = RichReply.createFor(this.roomId, parentEventId, body, md.renderInline(body));
         } else {
+            const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
             content = {
                 "msgtype": "m.text",
                 "body": body,
