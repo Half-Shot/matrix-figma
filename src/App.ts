@@ -176,7 +176,7 @@ class FigmaApp {
             ));
         } else {
             // Send to the catch-all
-            this.catchAllRoom.handleNewComment(payload);
+            await this.catchAllRoom.handleNewComment(payload);
         }
     }
 
