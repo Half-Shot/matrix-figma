@@ -45,7 +45,7 @@ class FigmaApp {
         await this.matrixClient.joinRoom(roomId);
         let existingRoom = false;
         if (!existingRoom) {
-            await this.matrixClient.sendNotice(roomId, "Hello 👋. Please give me moderator permissions, and say `figma add <fileId>` to start tracking comments for a file.");
+            await this.matrixClient.sendNotice(roomId, "Hello 👋. Please give me moderator permissions, and say `figma track <fileId>` to start tracking comments for a file.");
         }
     }
 
@@ -87,7 +87,7 @@ class FigmaApp {
         const figmaRooms = this.figmaRooms.filter(r =>r.roomId === roomId);
         if (figmaRooms.length === 0) {
             // Not a figma room, is it a construction message?
-            const result = /figma add ([A-Za-z]+)/.exec(event.content.body);
+            const result = /figma track ([A-Za-z]+)/.exec(event.content.body);
             if (result) {
                 // It is!
                 let resultEmoji = "✅";
