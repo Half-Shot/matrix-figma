@@ -13,7 +13,7 @@ class FigmaApp {
     private figma: Figma.ClientInterface;
     private matrixClient: MatrixClient;
     private globalState!: IFigmaRoomStateGlobalConfig;
-    private permittedMembers: Set<string>;
+    private permittedMembers!: Set<string>;
     private figmaRooms: FigmaFileRoom[] = [];
     private myUserId: string = "";
     private catchAllRoom: FigmaFileRoom;
@@ -51,6 +51,15 @@ class FigmaApp {
     }
 
     private async onRoomEvent(roomId: string, event: any) {
+        if (roomId === config.adminRoom && event.type === "m.room.membership" && event.state_key) {
+            console.log("Got membership for admin room:", event.state_key, event.content.membership)
+            if (event.content.membership === "join") {
+                this.permittedMembers.add(event.state_key);
+            } else if (event.content.membership === "ban" || event.content.membership === "leave") {
+                this.permittedMembers.delete(event.state_key);
+            }
+            return;
+        }
         if (event.unsigned?.age && event.unsigned?.age > 15000) {
             console.log("ignoring old event");
         }
@@ -182,7 +191,7 @@ class FigmaApp {
                 await this.matrixClient.joinRoom(config.adminRoom);
                 this.permittedMembers = new Set(await this.matrixClient.getJoinedRoomMembers(config.adminRoom));
                 this.globalState = await this.matrixClient.getRoomStateEvent(config.adminRoom, FigmaRoomStateGlobalConfigEventType, ""); 
-                console.log(this.globalState);   
+                console.log("Permitted admins:", this.permittedMembers);   
             } catch (ex) {
                 console.error(`Could not start, waiting for ${FigmaRoomStateGlobalConfigEventType} to be defined in ${config.adminRoom}. Waiting 5s`);
                 await new Promise(res => setTimeout(res, 5000));
