@@ -26,10 +26,6 @@ class FigmaApp {
             config.matrixOpts.homeserverUrl,
             config.matrixOpts.accessToken
         );
-        this.matrixClient.on("room.message", this.onRoomMessage.bind(this));
-        this.matrixClient.on("room.event", this.onRoomEvent.bind(this));
-        this.matrixClient.on("room.invite", this.onInvite.bind(this))
-        AutojoinUpgradedRoomsMixin.setupOnClient(this.matrixClient);
         this.catchAllRoom = new FigmaFileRoom(config.adminRoom, "", { fileId: "" }, this.matrixClient);
     }
 
@@ -208,7 +204,11 @@ class FigmaApp {
             .listen(9898);
         console.log(`Listening on http://0.0.0.0:9898`);
         console.log("Starting matrix sync..");
+        AutojoinUpgradedRoomsMixin.setupOnClient(this.matrixClient);
         await this.matrixClient.start();
+        this.matrixClient.on("room.message", this.onRoomMessage.bind(this));
+        this.matrixClient.on("room.event", this.onRoomEvent.bind(this));
+        this.matrixClient.on("room.invite", this.onInvite.bind(this));
 
         process.on("SIGTERM", () => {
             console.log("Got SIGTERM, stopping app")
