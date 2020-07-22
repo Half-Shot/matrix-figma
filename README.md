@@ -1,6 +1,6 @@
 # matrix-figma
 
-[![#figma-bridge:half-shot.uk](https://img.shields.io/matrix/figma-bridge:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23figma-bridge:half-shot.uk&logo=matrix)](https://matrix.to/#/#figma-bridge:half-shot.uk) 
+[![#figma-bridge:half-shot.uk](https://img.shields.io/matrix/figma-bridge:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23figma-bridge:half-shot.uk&logo=matrix)](https://matrix.to/#/#figma-bridge:half-shot.uk) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/halfshot/matrix-figma)](https://hub.docker.com/r/halfshot/matrix-figma)
 
 This bridge enables Matrix users to subscribe to Figma files and have comments streamed into Matrix rooms in realtime.
 
