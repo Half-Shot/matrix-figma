@@ -32,14 +32,10 @@ export class FigmaFileRoom {
     }
 
     public async handleNewComment(payload: IFigmaPayload) {
-        const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`
-        const body = `**${payload.triggered_by.handle}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${payload.comment[0].text}`;
-        return this.client.sendMessage(this.roomId, {
-            "msgtype": "m.text",
-            "body": body,
-            "formatted_body": md.renderInline(body),
-            "format": "org.matrix.custom.html",
-        });
+        const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`;
+        const comment = payload.comment.map(({text}) => text).join("");
+        const name = payload.triggered_by.handle.split(' ').map(p => p[0] + '&#8203;' + p.slice(1)).join(' ');
+        const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
     }
 
     public async updateState(state: IFigmaRoomStateFile) {
