@@ -100,7 +100,8 @@ class FigmaApp {
         const result = /figma track ([A-Za-z0-9]+)/.exec(event.content.body);
         if (result) {
             if (figmaRooms.find((r) => r.fileId === result[1])) {
-                return this.matrixClient.sendNotice(roomId, "That file is already being tracked in this room");
+                // Ignore repeat attempts to track
+                return;
             }
             // It is!
             let resultEmoji = "✅";
