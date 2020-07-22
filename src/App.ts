@@ -97,7 +97,7 @@ class FigmaApp {
         const figmaRooms = this.figmaRooms.filter(r =>r.roomId === roomId);
         if (figmaRooms.length === 0) {
             // Not a figma room, is it a construction message?
-            const result = /figma track ([A-Za-z]+)/.exec(event.content.body);
+            const result = /figma track ([A-Za-z0-9]+)/.exec(event.content.body);
             if (result) {
                 // It is!
                 let resultEmoji = "✅";
