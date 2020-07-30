@@ -45,7 +45,7 @@ export class FigmaFileRoom {
         } else {
             const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
             content = {
-                "msgtype": "m.text",
+                "msgtype": "m.notice",
                 "body": body,
                 "formatted_body": md.renderInline(body),
                 "format": "org.matrix.custom.html"
