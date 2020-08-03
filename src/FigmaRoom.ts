@@ -42,6 +42,7 @@ export class FigmaFileRoom {
         if (parentEventId) {
             const body = `**${name}**: ${comment}`;
             content = RichReply.createFor(this.roomId, parentEventId, body, md.renderInline(body));
+            content["msgtype"] = "m.notice";
         } else {
             const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
             content = {
