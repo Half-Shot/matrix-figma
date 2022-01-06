@@ -1,3 +1,5 @@
+# ⚠️ NOTE: This bridge is now deprecated in favour of https://github.com/Half-Shot/matrix-hookshot which supports Figma, amonst other options. 
+
 # matrix-figma
 
 [![#figma-bridge:half-shot.uk](https://img.shields.io/matrix/figma-bridge:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23figma-bridge:half-shot.uk&logo=matrix)](https://matrix.to/#/#figma-bridge:half-shot.uk) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/halfshot/matrix-figma)](https://hub.docker.com/r/halfshot/matrix-figma)
